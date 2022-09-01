@@ -31,7 +31,10 @@ try {
   $payment->setAttributeValues($attributes);
   $response = $payment->create();
   var_dump($response);
-} catch (\Exception $e) {
-  echo $e->getMessage();
-  return;
+} catch (JudopayExceptionValidationError $e) {
+  echo ("{\"Error\":\"".$e->getSummary()."\",\"result\":\"Error\"}");
+} catch (JudopayExceptionApiException $e) {
+  echo ("{\"Error\":\"".$e->getSummary()."\",\"result\":\"Error\"}");
+} catch (Exception $e) {
+  echo ("{\"Error\":\"".$e->getMessage()."\",\"result\":\"Error\"}");
 }
