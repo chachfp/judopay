@@ -14,12 +14,12 @@ $payment = $judopay->getModel('CardPreauth');
 
 $attributes = [
     'amount' => 2.00,
-    'cardNumber' => "4976000000003436",
-    'expiryDate' => "12/25",
+    'cardNumber' => '4976000000003436',
+    'expiryDate' => '12/25',
     'yourConsumerReference' => rand(0, 1000000000000),
     'yourPaymentReference' => rand(0, 1000000000000),
-    'cv2' => "452",
-    'cardHolderName' => "Jimi Hendrix",
+    'cv2' => '452',
+    'cardHolderName' => 'Jimi Hendrix',
     'currency' => 'GBP',
     'judoId' => '100052109',
     'threeDSecure' => [
@@ -29,15 +29,37 @@ $attributes = [
 ];
 $timestamp = $date = date('Y-m-d H:i:s');
 var_dump($timestamp);
+$response = null;
 
 try {
   $payment->setAttributeValues($attributes);
   $response = $payment->create();
   var_dump($response);
 } catch (JudopayExceptionValidationError $e) {
-  echo ("{\"Error\":\"".$e->getSummary()."\",\"result\":\"Error\"}");
+  echo("{\"Error\":\"" . $e->getSummary() . "\",\"result\":\"Error\"}");
 } catch (JudopayExceptionApiException $e) {
-  echo ("{\"Error\":\"".$e->getSummary()."\",\"result\":\"Error\"}");
+  echo("{\"Error\":\"" . $e->getSummary() . "\",\"result\":\"Error\"}");
 } catch (Exception $e) {
-  echo ("{\"Error\":\"".$e->getMessage()."\",\"result\":\"Error\"}");
+  echo("{\"Error\":\"" . $e->getMessage() . "\",\"result\":\"Error\"}");
+}
+
+// 2nd part
+$completeRequest = $judopay->getModel('CompleteThreeDSecureTwo');
+$attributes = [
+    'receiptId' => $response['receiptId'],
+    'cv2' => '452'
+];
+
+// Submit the object to Judo to complete the 3ds2 journey
+try {
+  $completeRequest->setAttributeValues($attributes);
+  $response = $completeRequest->update();
+  var_dump('2nd part');
+  var_dump($response);
+} catch (JudopayExceptionValidationError $e) {
+  echo("{\"Error\":\"" . $e->getSummary() . "\",\"result\":\"Error\"}");
+} catch (JudopayExceptionApiException $e) {
+  echo("{\"Error\":\"" . $e->getSummary() . "\",\"result\":\"Error\"}");
+} catch (Exception $e) {
+  echo("{\"Error\":\"" . $e->getMessage() . "\",\"result\":\"Error\"}");
 }
