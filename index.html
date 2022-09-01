@@ -1,0 +1,357 @@
+<HTML>
+<HEAD>
+<!-- 3rd Party Bootstrap GUI Used for form UI -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+  <!-- JQuery Library -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</HEAD>
+<BODY>
+<!-- JavaScript Bundle with Popper for Bootstrap UI -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+<!-- Payment Form Display -->
+<div class="container">
+ <div class="row justify-content-center">
+<!-- Default form Action which is handle via override -->
+<form class="form-horizontal" action="./postpayment.php" id="paymentForm" name="paymentForm">
+<fieldset>
+<!-- Form Name -->
+<legend>Payment Details</legend>
+<!-- Text input For Cardholder Name-->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="cardHolderName">Card Holder</label>  
+  <div class="col-md-5">
+  <input id="cardHolderName" name="cardHolderName" type="text" placeholder="" class="form-control input-md" required="" value="CHALLENGE">
+  <span class="help-block">Enter Card Holder Name</span>  
+  </div>
+</div>
+<!-- Text input for Card Number-->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="cardNumber">Card Number</label>  
+  <div class="col-md-4">
+  <input id="cardNumber" name="cardNumber" type="text" placeholder="" class="form-control input-md" required="" value="4976000000003436">
+  <span class="help-block">Enter Credit Card Number</span>  
+  </div>
+</div>
+<!-- CVV input password field to hide entry -->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="CVV">CVV</label>
+  <div class="col-md-2">
+    <input id="CVV" name="CVV" type="password" placeholder="" class="form-control input-md" required="" value="452">
+    <span class="help-block">CV2/CVV Code</span>
+  </div>
+</div>
+<!-- Expiry input-->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="cardExpiryDate">Expiry Date</label>  
+  <div class="col-md-2">
+  <input id="cardExpiryDate" name="cardExpiryDate" type="text" placeholder="" class="form-control input-md" required="" value="12/25">
+  <span class="help-block">Expiry Date On Card</span>  
+  </div>
+</div>
+<!-- Submit -->
+<div class="form-group">
+  <label class="col-md-4 control-label" for="singlebutton"></label>
+  <div class="col-md-4">
+    <input type="submit" id="singlebutton" name="singlebutton" class="btn btn-success"></button>
+  </div>
+</div>
+</fieldset>
+</form>
+</div>
+</div>
+<!-- Hidden IFRAME for DEVICE DETAIL GATHERING 
+This iFrame will recieve a result which will trigger an update on the 
+windows message async function -->
+<iframe id="hidden_device_iframe" name="hidden_device_iframe" style="display: none;"></iframe>
+<!-- END OF IFRAME -->
+<script>
+// Records Result of Device Detail Check, default false for No
+let device_detail_success=false;
+// Sets MethodCompletion Status, defaults to unavailable if nothing received (default)
+let methodCompletion = "Unavailable";
+// Sets the ReceiptID to passthrough Resuming 3ds2 Journey (global)
+let receiptID = "";
+// Sets the CVV to passthrough for Resuming the 3ds2 Journey (global)
+let CVV = "";
+// Listener for Messages
+// This specifically listens for message from Judopay
+// This listener handles the iframe results if and when received
+window.addEventListener("message", (event) => {
+  // Split the Messages Received
+  var key = event.message ? "message" : "data";
+  var data = event[key];
+  // Only Interested in Judo Messages
+  if (event.origin != ("https://api.judopay.com"))
+    return;
+  // Default Hide the Challenge Modal (if Visible will hide it)
+    $('#myModal').modal('hide');
+    // Log Out Received Data from origin
+    console.log("Message Event from : "+event.origin);
+    // Log Out The Data Payload
+    console.log("Received Reply Window Message: ",data);
+   
+      // Was Device Detail Recevied from the 3ds2 Provider?
+      if ((data['type'] == "ThreeDS2MethodNotification")) {
+         console.log("Received Result = " + data['payload']['threeDSServerTransID']);
+         device_detail_success = true;
+         methodCompletion = "Yes";
+      } 
+      // Was the Challenge Response Recieved from the 3ds2 provider?
+      if ((data['type'] == "ThreeDS2ChallengeNotification")) {
+        complete3ds2();
+      }
+}, false);
+/*
+Loop for n seconds to wait for Device Detail Return from 3ds2 Provider
+This function is called with a value of 10 for 10 seconds to wait and see if 
+a device detail check is returned from the 3ds2 provider, if not it continues
+without it
+*/
+function wait_for_device_detail(loop,thisCVV) {
+  console.log("Waiting for 3ds2 device detail check response :" + device_detail_success);
+  CVV = thisCVV;
+  /* 
+  Quits if timer reaches 0 or we already have a message received in the window
+  If the device_details_success is set to true from the windows message async function. 
+  This loop will quit early instead of waiting 
+  */
+  if (loop > 0 && !device_detail_success ) {
+    setTimeout(function(){console.log("Waiting..."+loop);wait_for_device_detail(loop-1,CVV);}, 1000);
+  } else {
+    // Carry on to continue the 3ds2 Journey with the device detail check result
+    
+    continue_3ds2(device_detail_success)
+  
+  }
+}
+/*
+Carry on 3ds2 Journey with device_detail_success status
+Ensure the methodCompletion value is set correctly
+*/
+function continue_3ds2(device_detail_check_success) {
+  device_detail_success = device_detail_check_success;
+  console.log("Continuing 3ds2 Journey, Device Detail Check Returned : "+device_detail_check_success);
+  console.log("Resuming 3ds2 Transaction for Receipt: "+receiptID+" with MethodCompletion : "+methodCompletion);
+    // Post to Resume3ds2 Journey to Judo
+  var resume3ds2 = $.post( "./resume3ds2.php", { receiptID: receiptID, CVV: CVV,methodCompletion:methodCompletion } );
+  // When Result Returned from Judo
+  resume3ds2.done(function( data ) {
+  
+  // Result Received So Check The result and decide what is next
+  console.log("Received Reply From Judo - After Resuming 3ds2");
+      
+  var data = JSON.parse(data);
+  
+  // Log the Raw Result Out
+  console.log(data);
+      // Does it require a Challenge Screen? If So Display It
+      if (data['result']=="Challenge completion is needed for 3D Secure 2") {
+      console.log("Challenge Has Been Requested, Rendering Challenge");
+          
+          // Display Challenge Window by Posting Detail to 3ds2 Provider
+          $('#myModal').modal('show');
+          // Build a form with required 3ds2 data to submit to 3ds provider
+            
+            var ChallengeForm = document.createElement("form");
+            ChallengeForm.setAttribute("method", "POST");
+            ChallengeForm.setAttribute("action", data['challengeUrl']);
+            ChallengeForm.setAttribute("target", "challenge_iframe");
+            var creqData = document.createElement("input");
+            creqData.setAttribute("type", "hidden");
+            creqData.setAttribute("name", "creq");
+            creqData.setAttribute("id", "creq");
+            creqData.setAttribute("value", data['cReq']);
+            ChallengeForm.appendChild(creqData);
+            document.body.appendChild(ChallengeForm);
+            console.log("Submitting form to 3ds2 provider to render challenge")
+            ChallengeForm.submit();
+      } else {
+        // Wasn't a Challenge so handle the response
+        // Re-Enable the Submit Button since processing is complete
+        document.getElementById("singlebutton").disabled = false;
+        // Result Finished Successfully - Authorised or Declined
+        if (data['result']=="Success") {
+          handleSuccess(data);
+        }
+        // Result Failed - Some Error
+        if (data['result']=="Failed") {
+          handleFailure(data);
+        }
+        // Result Was An Error - System Error
+        if (data['result']=="Error") {
+          handleError(data);
+        }
+      }
+      }
+    );
+}
+// Function To Handle a Successful Result
+function handleSuccess(result) {
+  // Simply Log Out the Result and Show Alert with Status
+  console.log("Success Result : "+result['receiptId']+"\n"+result['message']);
+  alert("Success : "+result['receiptId']+"\n"+result['message']);
+}
+// Function To Handle a Failed Result
+function handleFailure(result) {
+  // Simply Log Out the Result and Show Alert with Status
+  console.log("Result Failed!"+result['receiptId']+"\n"+result['message']);
+  alert("Failed : "+result['receiptId']+"\n"+result['message']);
+}
+// Function To Handle an Error Result
+function handleError(result) {
+  // Simply Log Out the Result and Show Alert with Status
+  console.log("An Error Occured : "+result['Error']);
+  alert(result['Error']);
+}
+// Function to complete the 3ds2 Journey
+function complete3ds2() {
+  // Post the complete detail to Judo
+  var complete3ds2 = $.post( "./complete3ds2.php", { receiptID: receiptID, CVV: CVV } );
+  console.log("Completing 3ds2 Transaction - Posting To Judopay");
+    // Wait for the Result from Judo
+    complete3ds2.done(function( data ) {
+    
+      // Result Recieved, parse the response and handle it
+      var data = JSON.parse(data);
+      // Log out the raw data response
+      console.log(data);
+      // Enable Submit Button, as result is finished
+      document.getElementById("singlebutton").disabled = false;
+        // Result Finished Successfully - Authorised or Declined
+        if (data['result']=="Success") {
+          handleSuccess(data);
+        }
+        // Result Failed - Some Error
+        if (data['result']=="Failed") {
+          handleFailure(data);
+        }
+        // Result Was An Error - System Error
+        if (data['result']=="Error") {
+          handleError(data);
+        }
+    }
+    );
+}
+/* 
+Payment Form Submit Capture
+Called When Submit is Pressed to process payment
+*/
+$( "#paymentForm" ).submit(function(event) {
+  // Disable the Submit Button so it can't be resubmitted
+  document.getElementById("singlebutton").disabled = true;
+  // Stop The Default Submit Behaviour as it is overidden
+  event.preventDefault();
+  console.log("Setting up Data To Post To Judo");
+  // Create Dynamic Form to Post Securely to Judo with necessary data
+  // cardholdername, cardnumber, cvv, cardexpiry and url to submit to
+  var $form = $( this ),
+      cardHolderName = $form.find( "input[name='cardHolderName']" ).val(),
+      cardNumber = $form.find( "input[name='cardNumber']" ).val(),
+      CVV = $form.find( "input[name='CVV']" ).val(),
+      cardExpiryDate = $form.find( "input[name='cardExpiryDate']" ).val(),
+      url = $form.attr( "action" );
+  // Post the Forms JSON data To handling php code
+  console.log("Positing To Judo SDK");
+  var posting = $.post( url, { cardHolderName: cardHolderName,cardNumber: cardNumber, CVV: CVV, cardExpiryDate:cardExpiryDate } );
+    // Wait for the response from Judo
+    posting.done(function( data ) {
+    
+    // Handle the Response from Judo
+      console.log("Received Reply From Judo - After Posting To Judo");
+      console.log(data);
+      var data = JSON.parse(data);
+  
+      // Log out raw data response
+      console.log(data);
+      // Does the response require Device Detail Gathering?
+      if (data['result']=="Additional device data is needed for 3D Secure 2"){
+        
+        // Yes device detail gathering required so go get it
+        console.log("Result Was Device Data Required");
+        console.log("Setting Up Hidden Form To Post to 3DS2 Provider");
+        // Keep receiptID to Resume3ds2
+        receiptID = data['receiptId'];
+        // Create the Hidden Form to post to 3ds2  the hidden iframe for Device
+        // Detail Gathering Result To Be Returned, in turn this will trigger
+        // A window message in this parent from the return which is watched for 
+        // by window.addEventListener
+        var form = document.createElement("form");
+        form.setAttribute("method", "POST");
+        form.setAttribute("action", data['methodUrl']);
+        form.setAttribute("target", "hidden_device_iframe");
+        var threeDSMethodData = document.createElement("input");
+        threeDSMethodData.setAttribute("type", "hidden");
+        threeDSMethodData.setAttribute("name", "threeDSMethodData");
+        threeDSMethodData.setAttribute("value",data['md']);
+        form.appendChild(threeDSMethodData);
+        document.body.appendChild(form);
+        console.log ("Submitting Form To 3ds2 Provider");
+        // Post the Form to the 3ds2 Provider
+        form.submit();
+        // Calls 10 Second Loop to wait for a device check result
+        // If none received in 10 seconds will continue payment journey
+        // assuming that no device check was carried out by 3ds2 vendour
+        wait_for_device_detail(10,CVV);
+      }  else {
+        // Re-enable Submit Button
+        document.getElementById("singlebutton").disabled = false;
+        
+        /* This checks if no device detail check was received but instead
+        a challenge madated - this happens on modern digital cards
+        such as Monzo / Curve / Revolut
+        So process challenge immediately */
+        if (data['cReq']!=undefined) {
+            // Show the Challenge Modal Window / iframe
+            $('#myModal').modal('show');
+            
+            // Save the receiptId
+            receiptID = data['receiptId'];
+            
+            // Build the Challenge form detail to post to the 3ds2 provider
+            var ChallengeForm = document.createElement("form");
+            ChallengeForm.setAttribute("method", "POST");
+            ChallengeForm.setAttribute("action", data['challengeUrl']);
+            ChallengeForm.setAttribute("target", "challenge_iframe");
+            var creqData = document.createElement("input");
+            creqData.setAttribute("type", "hidden");
+            creqData.setAttribute("name", "creq");
+            creqData.setAttribute("id", "creq");
+            creqData.setAttribute("value", data['cReq']);
+            ChallengeForm.appendChild(creqData);
+            document.body.appendChild(ChallengeForm);
+            // Submit the form to 3ds2 provider which in turn
+            // will return the challenge window in the challenge modal
+            console.log("Submitting form to obtain the challenge window")
+            ChallengeForm.submit();
+        }
+      // Result Finished Successfully - Authorised or Declined
+        if (data['result']=="Success") {
+          handleSuccess(data);
+        }
+        // Result Failed - Some Error
+        if (data['result']=="Failed") {
+          handleFailure(data);
+        }
+        // Result Was An Error - System Error
+        if (data['result']=="Error") {
+          handleError(data);
+        }
+      }    
+  });
+});
+</script>
+<!-- Initially Hidden Modal For Challenge -->
+<div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title w-100 text-center" id="exampleModalCenterTitle" >Challenge - Do Not Close This Window</h5>
+      </div>
+      <div class="modal-body w-100 text-center">
+        <iframe id="challenge_iframe" name="challenge_iframe" height="400" /><iframe>
+      </div>
+    </div>
+  </div>
+</div>
+</BODY>
+</HTML>

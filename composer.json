@@ -1,0 +1,5 @@
+{
+    "require": {
+          "judopay/judopay-sdk": "5.1.0"
+    }
+}
