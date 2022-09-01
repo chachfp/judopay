@@ -1,9 +1,9 @@
 <?php
 
 // Credentials for PHP APITokens / JudoID / Secret to use for requests
-$judoId = "";
-$apiToken = "";
-$apiSecret = "";
+$judoId = "100052109";
+$apiToken = "l4iq3SND2nU5U8rM";
+$apiSecret = "7d18a83c6e647a79fff18c09b8cac123289100420491ee77f2a99a298e9bf603";
 
 // Set production = true to use the production environment
 $production = false;
