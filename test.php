@@ -19,6 +19,7 @@ $attributes = [
     'yourConsumerReference' => rand(0, 1000000000000),
     'yourPaymentReference' => rand(0, 1000000000000),
     'cv2' => "452",
+    'cardHolderName' => "Jimi Hendrix",
     'currency' => 'GBP',
     'judoId' => '100052109',
     'threeDSecure' => [
@@ -26,6 +27,8 @@ $attributes = [
         'methodCompletion' => 'no',
     ]
 ];
+$timestamp = $date = date('Y-m-d H:i:s');
+var_dump($timestamp);
 
 try {
   $payment->setAttributeValues($attributes);
