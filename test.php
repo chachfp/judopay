@@ -44,6 +44,27 @@ try {
 }
 
 // 2nd part
+$resumeRequest = $judopay->getModel('ResumeThreeDSecureTwo');
+$attributes = [
+    'receiptId' => $response['receiptId'],
+    'cv2' => '452',
+    'methodCompletion' => 'no'
+];
+
+try {
+  $resumeRequest->setAttributeValues($attributes);
+  $response = $resumeRequest->update();
+  var_dump('2nd part');
+  var_dump($response);
+} catch (JudopayExceptionValidationError $e) {
+  echo("{\"Error\":\"" . $e->getSummary() . "\",\"result\":\"Error\"}");
+} catch (JudopayExceptionApiException $e) {
+  echo("{\"Error\":\"" . $e->getSummary() . "\",\"result\":\"Error\"}");
+} catch (Exception $e) {
+  echo("{\"Error\":\"" . $e->getMessage() . "\",\"result\":\"Error\"}");
+}
+
+// 3rd part
 $completeRequest = $judopay->getModel('CompleteThreeDSecureTwo');
 $attributes = [
     'receiptId' => $response['receiptId'],
@@ -54,7 +75,7 @@ $attributes = [
 try {
   $completeRequest->setAttributeValues($attributes);
   $response = $completeRequest->update();
-  var_dump('2nd part');
+  var_dump('3rd part');
   var_dump($response);
 } catch (JudopayExceptionValidationError $e) {
   echo("{\"Error\":\"" . $e->getSummary() . "\",\"result\":\"Error\"}");
