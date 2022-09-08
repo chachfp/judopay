@@ -80,8 +80,12 @@ if ($response['result'] == 'Challenge completion is needed for 3D Secure 2') {
   } catch (\Exception $exception) {
     var_dump('Guzzle exception, message: ' . $exception->getMessage());
   }
-  var_dump($guzzleResponse);
-  die('what happened');
+  echo $guzzleResponse->getStatusCode();
+// "200"
+  echo $guzzleResponse->getHeader('content-type')[0];
+// 'application/json; charset=utf8'
+  echo $guzzleResponse->getBody();
+  var_dump($guzzleResponse->getBody());
   // 3rd part
   $completeRequest = $judopay->getModel('CompleteThreeDSecureTwo');
   $attributes = [
