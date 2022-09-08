@@ -1,6 +1,7 @@
 {
   "require": {
     "judopay/judopay-sdk": "5.1.0",
-    "ext-json": "*"
+    "ext-json": "*",
+    "guzzlehttp/guzzle": "6.5.8"
   }
 }

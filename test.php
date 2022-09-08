@@ -1,4 +1,7 @@
 <?php
+
+use GuzzleHttp\Client;
+
 require("vendor/autoload.php");
 
 $judopay = new \Judopay(
@@ -28,7 +31,7 @@ $attributes = [
     ]
 ];
 $timestamp = $date = date('Y-m-d H:i:s');
-var_dump($timestamp);
+var_dump('Transaction timestamp: ' . $timestamp);
 $response = null;
 
 try {
@@ -43,13 +46,16 @@ try {
   echo("{\"Error\":\"" . $e->getMessage() . "\",\"result\":\"Error\"}");
 }
 
-// 2nd part
-$resumeRequest = $judopay->getModel('ResumeThreeDSecureTwo');
-$attributes = [
-    'receiptId' => $response['receiptId'],
-    'cv2' => '452',
-    'methodCompletion' => 'no'
-];
+// handle response
+if ($response['result'] == 'Additional device data is needed for 3D Secure 2') {
+  // resume 3DS2
+  $resumeRequest = $judopay->getModel('ResumeThreeDSecureTwo');
+  $attributes = [
+      'receiptId' => $response['receiptId'],
+      'cv2' => '452',
+      'methodCompletion' => 'no'
+  ];
+}
 
 try {
   $resumeRequest->setAttributeValues($attributes);
@@ -63,13 +69,26 @@ try {
 } catch (Exception $e) {
   echo("{\"Error\":\"" . $e->getMessage() . "\",\"result\":\"Error\"}");
 }
-
-// 3rd part
-$completeRequest = $judopay->getModel('CompleteThreeDSecureTwo');
-$attributes = [
-    'receiptId' => $response['receiptId'],
-    'cv2' => '452'
-];
+if ($response['result'] == 'Challenge completion is needed for 3D Secure 2') {
+  // check challenge
+  var_dump("Submitting form to 3ds2 provider to render challenge");
+  $client = new Client();
+  try {
+    $guzzleResponse = $client->post($response['challengeUrl'], [
+        'creq' => $response['cReq']
+    ]);
+  } catch (\Exception $exception) {
+    var_dump('Guzzle exception, message: ' . $exception->getMessage());
+  }
+  var_dump($guzzleResponse);
+  die('what happened');
+  // 3rd part
+  $completeRequest = $judopay->getModel('CompleteThreeDSecureTwo');
+  $attributes = [
+      'receiptId' => $response['receiptId'],
+      'cv2' => '452'
+  ];
+}
 
 // Submit the object to Judo to complete the 3ds2 journey
 try {
